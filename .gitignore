@@ -1,6 +1,7 @@
 *.ipynb
 *.png
 *.csv
+__pycache__/
 .ipynb_checkpoints/
 pokemon_img/
 first_result/
