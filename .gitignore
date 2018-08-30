@@ -1,0 +1,11 @@
+*.ipynb
+*.png
+*.csv
+.ipynb_checkpoints/
+pokemon_img/
+first_result/
+DeepCNN/
+with_all_image/
+VGG16/
+VGG16_FC/
+DeepCNN_test/
