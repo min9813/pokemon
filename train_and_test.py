@@ -156,6 +156,7 @@ parser.add_argument("-f", "--output_file",
                     help="file to output the training data", type=str, default="TEST")
 parser.add_argument("-p", "--pokemon", help="# of pokemon image to infer", type=int,
                     default=1)
+parser.add_argument("-i", "--infer_file", help="file path to pokemon image to infer")
 
 args = parser.parse_args()
 
@@ -188,6 +189,8 @@ if __name__ == "__main__":
         print("Infering Mode")
         load_file = "./pokemon_img/daisukiclub/original/{}.png".format(
             str(args.pokemon))
+        if args.infer_file is not None:
+            load_file = args.infer_file
         if args.model == "vgg16":
             load_model_path = "./VGG16/snapshot_epoch-4"
         image = Image.open(load_file)
