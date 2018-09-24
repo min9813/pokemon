@@ -1,37 +1,47 @@
 # coding: utf-8
+
 import urllib
 import pandas as pd
 import cv2
 import numpy as np
+import os
 import argparse
+import sys
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 from PIL import Image
 
 POKEMON_NUMBER = 808
 
-TEST_URL = "./pokemon_img/daisukiclub/original/1.png"
+TEST_URL = "./pokemon_img/daisukiclab/original/1.png"
 
 
-def get_pokemon_image(url_type):
-    if url_type == "daisukiclub":
-        for num in tqdm(range(1, POKEMON_NUMBER)):
-            pokemon_number = "{:0>3}".format(num)
-            url_pokemon = "https://www.pokemon.jp/zukan/detail/{}.html".format(
-                pokemon_number)
-            html = urllib.request.urlopen(url_pokemon).read()
-            soup = BeautifulSoup(html, "lxml")
-            img_url = "https://www.pokemon.jp" + \
-                soup.find("div", class_="profile-phto").img.get("src")
-            r = urllib.request.urlopen(img_url).read()
-            with open("./pokemon_img/{0}/original/{1}.png".format(url_type, num), "wb") as f:
-                f.write(r)
-    if url_type == "yakkun":
-        for num in tqdm(range(1, POKEMON_NUMBER)):
-            url_pokemon = "https://img.yakkun.com/poke/sm/n{}.gif".format(num)
-            img = urllib.request.urlopen(url_pokemon).read()
-            with open("./pokemon_img/{0}/original/{1}.png".format(url_type, num), "wb") as f:
-                f.write(img)
+def get_pokemon_image(path):
+    if ("." in path[1:]) or (path[-2] == "/") or (path[-1].isdigit()) or (path[-1] == "/"):
+        sys.exit(
+            "end of path directory must be parent directory of each pokemon number directory")
+    for num in tqdm(range(1, POKEMON_NUMBER)):
+        save_path = path + "/" + str(num)
+        check_and_make_dir(save_path)
+        pokemon_number = "{:0>3}".format(num)
+        url_pokemon = "https://www.pokemon.jp/zukan/detail/{}.html".format(
+            pokemon_number)
+        html = urllib.request.urlopen(url_pokemon).read()
+        soup = BeautifulSoup(html, "lxml")
+        img_url = "https://www.pokemon.jp" + \
+            soup.find("div", class_="profile-phto").img.get("src")
+        r = urllib.request.urlopen(img_url).read()
+        with open(save_path + "/daisuki_org.png", "wb") as file:
+            file.write(r)
+        url_pokemon = "https://img.yakkun.com/poke/sm/n{}.gif".format(num)
+        img = urllib.request.urlopen(url_pokemon).read()
+        with open(save_path + "/yakkun_org.png", "wb") as f:
+            f.write(img)
+
+
+def check_and_make_dir(path):
+    if not os.path.isdir(path):
+        os.makedirs(path)
 
 
 def get_pokemon_data(url="http://blog.game-de.com/pm-sm/sm-allstats/", file_name="pokemon_data.csv", encoding="utf-8"):
@@ -75,42 +85,46 @@ def get_pokemon_data(url="http://blog.game-de.com/pm-sm/sm-allstats/", file_name
 
 def convert_p2rgb():
     """
-    画像ファイルのモードがPなのでRGBに変換する
+    画像ファイルのモードがPなのでRGBに変換する。
     """
+    print("change mode ...")
     for i in tqdm(range(1, POKEMON_NUMBER)):
-        file_path = "./pokemon_img/yakkun/original/{}.png".format(i)
-        im = Image.open(file_path)
+        load_path = "./pokemon_img/{}/yakkun_org.png".format(i)
+        save_path = "./pokemon_img/{}/yakkun.png".format(i)
+        im = Image.open(load_path)
         if im.mode == "RGB":
-            print("The images mode are already \'RGB\', finish this")
+            print("画像のモードが既にRGBなので特別な処理はいりません。終了します")
             break
         new_im = im.convert("RGB")
-        new_im.save(file_path, quality=100)
-        file_path = "./pokemon_img/daisukiclub/original/{}.png".format(i)
-        im = Image.open(file_path)
+        new_im.save(save_path, quality=100)
+        load_path = "./pokemon_img/{}/daisuki_org.png".format(i)
+        save_path = "./pokemon_img/{}/daisuki.png".format(i)
+        im = Image.open(load_path)
         new_im = im.convert("RGB")
-        new_im.save(file_path, quality=100)
+        new_im.save(save_path, quality=100)
 
 
 def reverse():
     """
     画像を左右・上下反転させる
     """
-    print("start flipping images ...")
+    print("画像の左右反転を行っています")
     for i in tqdm(range(1, POKEMON_NUMBER)):
-        load_path = "./pokemon_img/daisukiclub/original/{}.png".format(i)
-        save_path = "./pokemon_img/daisukiclub/y_reverse/{}.png".format(i)
+        load_path = "./pokemon_img/{}/daisuki.png".format(i)
+        save_path = "./pokemon_img/{}/yreverse_d.png".format(i)
         im = cv2.imread(load_path)
         new_im = cv2.flip(im, 1)
         cv2.imwrite(save_path, new_im)
-        save_path = "./pokemon_img/daisukiclub/x_reverse/{}.png".format(i)
+        save_path = "./pokemon_img/{}/xreverse_d.png".format(i)
         new_im = cv2.flip(im, 0)
         cv2.imwrite(save_path, new_im)
-        load_path = "./pokemon_img/yakkun/original/{}.png".format(i)
-        save_path = "./pokemon_img/yakkun/y_reverse/{}.png".format(i)
+        load_path = "./pokemon_img/{}/yakkun.png".format(i)
+        save_path = "./pokemon_img/{}/yreverse_y.png".format(i)
+
         im = cv2.imread(load_path)
         new_im = cv2.flip(im, 1)
         cv2.imwrite(save_path, new_im)
-        save_path = "./pokemon_img/yakkun/x_reverse/{}.png".format(i)
+        save_path = "./pokemon_img/{}/xreverse_y.png".format(i)
         new_im = cv2.flip(im, 0)
         cv2.imwrite(save_path, new_im)
 
@@ -119,15 +133,15 @@ def gray_scale():
     """
     グレースケール画像を生成
     """
-    print("making gray_scale image ...")
+    print("グレースケール画像を生成しています...")
     for i in tqdm(range(1, POKEMON_NUMBER)):
-        load_path = "./pokemon_img/daisukiclub/original/{}.png".format(i)
-        save_path = "./pokemon_img/daisukiclub/gray_scale/{}.png".format(i)
+        load_path = "./pokemon_img/{}/daisuki.png".format(i)
+        save_path = "./pokemon_img/{}/grayscale_d.png".format(i)
         im = cv2.imread(load_path)
         new_im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
         cv2.imwrite(save_path, new_im)
-        load_path = "./pokemon_img/yakkun/original/{}.png".format(i)
-        save_path = "./pokemon_img/yakkun/gray_scale/{}.png".format(i)
+        load_path = "./pokemon_img/{}/yakkun.png".format(i)
+        save_path = "./pokemon_img/{}/grayscale_y.png".format(i)
         im = cv2.imread(load_path)
         new_im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
         cv2.imwrite(save_path, new_im)
@@ -137,7 +151,7 @@ def change_contrast(min_ct=50, max_ct=205):
     """
     トーンカーブを用いた調整
     """
-    print("changing contrast ...")
+    print("コントラストの調整を行っています...")
     diff_ct = max_ct - min_ct
 
     LUT_HC = np.arange(256, dtype="uint8")
@@ -153,13 +167,13 @@ def change_contrast(min_ct=50, max_ct=205):
     LUT_LC = min_ct + LUT_LC * (diff_ct) / 255
 
     for i in tqdm(range(1, POKEMON_NUMBER)):
-        load_path = "./pokemon_img/daisukiclub/original/{}.png".format(i)
-        save_path = "./pokemon_img/daisukiclub/high_contrast/{}.png".format(i)
+        load_path = "./pokemon_img/{}/daisuki.png".format(i)
+        save_path = "./pokemon_img/{}/hc_d.png".format(i)
         im = cv2.imread(load_path)
         new_im = cv2.LUT(im, LUT_HC)
         cv2.imwrite(save_path, new_im)
-        load_path = "./pokemon_img/yakkun/original/{}.png".format(i)
-        save_path = "./pokemon_img/yakkun/high_contrast/{}.png".format(i)
+        load_path = "./pokemon_img/{}/yakkun.png".format(i)
+        save_path = "./pokemon_img/{}/hc_y.png".format(i)
         im = cv2.imread(load_path)
         new_im = cv2.LUT(im, LUT_HC)
         cv2.imwrite(save_path, new_im)
@@ -175,24 +189,24 @@ def gamma_filter(high_gamma=1.5, low_gamma=0.75):
     LUT_HG = 255 * np.power(LUT_HG / 255, 1 / high_gamma)
     LUT_LG = 255 * np.power(LUT_LG / 255, 1 / low_gamma)
 
-    print("chainging gamma rate ...")
+    print("ガンマ補正をかけています...")
     print("High Contrast Gamma = {}".format(high_gamma))
     print("Low Contrast Gamma = {}".format(low_gamma))
     for i in tqdm(range(1, POKEMON_NUMBER)):
-        load_path = "./pokemon_img/daisukiclub/original/{}.png".format(i)
-        save_path = "./pokemon_img/daisukiclub/high_gamma/{}.png".format(i)
+        load_path = "./pokemon_img/{}/daisuki.png".format(i)
+        save_path = "./pokemon_img/{}/hg_d.png".format(i)
         im = cv2.imread(load_path)
         new_im = cv2.LUT(im, LUT_HG)
         cv2.imwrite(save_path, new_im)
-        save_path = "./pokemon_img/daisukiclub/low_gamma/{}.png".format(i)
+        save_path = "./pokemon_img/{}/lg_d.png".format(i)
         new_im = cv2.LUT(im, LUT_LG)
         cv2.imwrite(save_path, new_im)
-        load_path = "./pokemon_img/yakkun/original/{}.png".format(i)
-        save_path = "./pokemon_img/yakkun/high_gamma/{}.png".format(i)
+        load_path = "./pokemon_img/{}/yakkun.png".format(i)
+        save_path = "./pokemon_img/{}/hg_y.png".format(i)
         im = cv2.imread(load_path)
         new_im = cv2.LUT(im, LUT_HG)
         cv2.imwrite(save_path, new_im)
-        save_path = "./pokemon_img/yakkun/low_gamma/{}.png".format(i)
+        save_path = "./pokemon_img/{}/lg_y.png".format(i)
         new_im = cv2.LUT(im, LUT_LG)
         cv2.imwrite(save_path, new_im)
 
@@ -201,16 +215,16 @@ def gaussian_filter(filter_size=(5, 5), scale_1=50, scale_2=0):
     """
     ガウシアンフィルターで平均化する
     """
-    print("using gaussian filter")
+    print("ガウシアンフィルターによる平滑化を行います...")
     print("sigma 1 = {}, sigma 2 = {}".format(scale_1, scale_2))
     for i in tqdm(range(1, POKEMON_NUMBER)):
-        load_path = "./pokemon_img/daisukiclub/original/{}.png".format(i)
-        save_path = "./pokemon_img/daisukiclub/gaussian/{}.png".format(i)
+        load_path = "./pokemon_img/{}/daisuki.png".format(i)
+        save_path = "./pokemon_img/{}/gauss_d.png".format(i)
         im = cv2.imread(load_path)
         new_im = cv2.GaussianBlur(im, filter_size, scale_1)
         cv2.imwrite(save_path, new_im)
-        load_path = "./pokemon_img/yakkun/original/{}.png".format(i)
-        save_path = "./pokemon_img/yakkun/gaussian/{}.png".format(i)
+        load_path = "./pokemon_img/{}/yakkun.png".format(i)
+        save_path = "./pokemon_img/{}/gauss_y.png".format(i)
         im = cv2.imread(load_path)
         new_im = cv2.GaussianBlur(im, filter_size, scale_2)
         cv2.imwrite(save_path, new_im)
@@ -220,57 +234,49 @@ def gaussian_noise(mean=0, sigma=10):
     """
     ガウシアン分布に基づくノイズを加える
     """
-    print("adding gaussian noise ...")
+    print("ガウシアン分布に基づくノイズを加えています...")
     print("sigma = {}".format(sigma))
     for i in tqdm(range(1, POKEMON_NUMBER)):
-        load_path = "./pokemon_img/daisukiclub/original/{}.png".format(i)
-        save_path = "./pokemon_img/daisukiclub/gaussian_noise/{}.png".format(i)
+        load_path = "./pokemon_img/{}/daisuki.png".format(i)
+        save_path = "./pokemon_img/{}/gaussnoise_d.png".format(i)
         im = cv2.imread(load_path)
         gauss = np.random.normal(mean, sigma, im.size).reshape(im.shape)
         new_im = im + gauss
         cv2.imwrite(save_path, new_im)
-        load_path = "./pokemon_img/yakkun/original/{}.png".format(i)
-        save_path = "./pokemon_img/yakkun/gaussian_noise/{}.png".format(i)
+        load_path = "./pokemon_img/{}/yakkun.png".format(i)
+        save_path = "./pokemon_img/{}/gaussnoise_y.png".format(i)
         im = cv2.imread(load_path)
         gauss = np.random.normal(mean, sigma, im.size).reshape(im.shape)
         new_im = im + gauss
         cv2.imwrite(save_path, new_im)
 
 
-def type_dummy(pokemon_data, get_data=False):
+def type_dummy(pokemon_data):
     type1_dt = pd.get_dummies(pokemon_data["Type1"])
     type2_dt = pd.get_dummies(pokemon_data["Type2"])
     type2_dt[type1_dt.columns] += type1_dt
     pokemon_data = pd.concat([pokemon_data, type2_dt], axis=1)
     pokemon_data.to_csv("pokemon_data.csv", index=False)
-    if get_data:
-        return pokemon_data
-    else:
-        return
+    return pokemon_data
 
 
-def resize_image(image_types=["original"], resize_shape=(96, 96), load_path=None, save_path=None):
+def resize_image(resize_shape=(96, 96), load_path=None, save_path=None):
     """
     画像の大きさが異なるので小さい方の大きさ(96,96)に合わせる
     """
-    print("resizing images ...")
+    print("画像をリサイズしています...")
     print("new size = ({},{})".format(resize_shape[0], resize_shape[1]))
     if load_path is None and save_path is None:
-        for image_type in image_types:
-            print("into folder \'{}\' ...".format(image_type))
-            for i in tqdm(range(1, POKEMON_NUMBER)):
-                load_path = "./pokemon_img/daisukiclub/{}/{}.png".format(
-                    image_type, i)
-                save_path = "./pokemon_img/daisuki_resize/{}/{}.png".format(
-                    image_type, i)
-                im = Image.open(load_path)
-                im = im.resize(resize_shape)
-                im.save(save_path)
+        for i in tqdm(range(1, POKEMON_NUMBER)):
+            load_path = "./pokemon_img/{}/daisuki_org.png".format(i)
+            save_path = "./pokemon_img/{}/daisuki.png".format(i)
+            im = Image.open(load_path)
+            im = im.resize(resize_shape)
+            im.save(save_path)
     else:
         im = Image.open(load_path)
         im = im.resize(resize_shape)
         im.save(save_path)
-    print("finish")
 
 
 parser = argparse.ArgumentParser(description="This file is used to prepare pokemon image and data augumentation")
@@ -287,8 +293,6 @@ parser.add_argument("-resize", help="flag to resize images", action="store_true"
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    image_types = ["gaussian", "gray_scale", "high_gamma", "original",
-                   "y_reverse", "gaussian_noise", "high_contrast", "low_gamma", "x_reverse"]
     if args.download_image:
         print("start downloading pokemon image ...")
         get_pokemon_image(url_type="daisukiclub")
@@ -296,6 +300,8 @@ if __name__ == "__main__":
     if args.download_data:
         type_dummy(get_pokemon_data())
     convert_p2rgb()
+    if args.resize:
+        resize_image()
     if args.reverse:
         reverse()
     if args.gray_scale:
@@ -308,8 +314,3 @@ if __name__ == "__main__":
         gaussian_filter()
     if args.gaussian_noise:
         gaussian_noise()
-    if args.resize:
-        print("change the size of the next type of images:")
-        for image_type in image_types:
-            print(image_type)
-        resize_image(image_types=image_types)

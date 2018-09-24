@@ -37,7 +37,7 @@ def train(model=None,
 
     if _8th_data:
         train_data, valid_data = load_dataset(
-            image_types=image_types, label_type="int", ground_data=ground_data)
+            label_type="int", ground_data=ground_data)
         print(train_data[0])
         print("train data size :", len(train_data))
         print("valid data size :", len(valid_data))
@@ -48,7 +48,7 @@ def train(model=None,
 
     else:
         train_val, test_data = load_dataset(
-            image_types=image_types, label_type="int", model="vgg", ground_data=ground_data)
+            label_type="int", model="vgg", ground_data=ground_data)
         train_size = int(len(train_val) * 0.9)
         train_data, valid_data = split_dataset_random(
             train_val, train_size, seed=0)
@@ -70,13 +70,13 @@ def train(model=None,
     stop_conv_layer_int = disabled_update_last_layer.find("conv")
     stop_fc_layer_int = disabled_update_last_layer.find("fc")
     if stop_conv_layer_int >= 0:
-        last_layer_int = disabled_update_last_layer[stop_conv_layer_int + 4]
+        last_layer_int = int(disabled_update_last_layer[stop_conv_layer_int + 4])
         detect_stop_layer_str = "(1"
         for layer in range(2, last_layer_int + 1):
             detect_stop_layer_str += ("|" + str(layer))
         detect_stop_layer_str += ")_"
-    if stop_conv_layer_int >= 0:
-        last_layer_int = disabled_update_last_layer[stop_fc_layer_int + 2]
+    if stop_fc_layer_int >= 0:
+        last_layer_int = int(disabled_update_last_layer[stop_fc_layer_int + 2])
         if last_layer_int >= 8:
             sys.exit("stop layer must before fc8 layer")
         detect_stop_layer_str = "(1|2|3|4|5"
@@ -166,14 +166,7 @@ if __name__ == "__main__":
     POKEMON_TYPE_COLUMNS = POKEMON_TYPE_COLUMNS[POKEMON_TYPE_COLUMNS.index(
         "None"):]
     pokemon_type_data = pokemon_data[POKEMON_TYPE_COLUMNS]
-    image_types = ["gaussian",
-                   "high_contrast",
-                   "gaussian_noise",
-                   "high_gamma",
-                   "low_gamma",
-                   "original",
-                   "x_reverse",
-                   "y_reverse"]
+    print("pokemon data shape:", pokemon_type_data.shape)
     if args.model == "vgg16":
         model = VGG16Model(POKEMON_TYPE_NUMBER)
     else:
@@ -181,13 +174,12 @@ if __name__ == "__main__":
     if args.train:
         print("Training Mode")
         train(model=model,
-              image_types=image_types,
               ground_data=pokemon_type_data,
               max_epoch=3,
               out_file=args.output_file)
     else:
         print("Infering Mode")
-        load_file = "./pokemon_img/daisukiclub/original/{}.png".format(
+        load_file = "./pokemon_img/{}/daisuki.png".format(
             str(args.pokemon))
         if args.infer_file is not None:
             load_file = args.infer_file

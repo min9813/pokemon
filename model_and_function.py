@@ -2,10 +2,14 @@ import numpy as np
 import pandas as pd
 import chainer
 import sys
+import glob
+from tqdm import tqdm
 from chainer import links as L
 from chainer import functions as F
 from PIL import Image
 from chainer.backends.cuda import cupy as cp
+
+POKEMON_NUMBER = 803
 
 
 class ConvBlock(chainer.Chain):
@@ -79,8 +83,8 @@ class VGG16Model(chainer.Chain):
         return y
 
 
-def load_dataset(image_types=["original"], model=None, label_type="float", image_size=(96, 96), ground_data=None):
-    def make_one_data(number, load_path, type_data, label_type, _start_index, model=None, image_size=(96, 96)):
+def load_dataset(model=None, label_type="float", image_size=(96, 96), ground_data=None):
+    def make_one_data(number, load_path, type_data, label_type, model=None, image_size=(96, 96)):
         pokemon_image = Image.open(load_path)
         if model is None:
             if (pokemon_image.size[0] != image_size[0] or pokemon_image.size[1] != image_size[1]):
@@ -91,8 +95,9 @@ def load_dataset(image_types=["original"], model=None, label_type="float", image
             pokemon_image = L.model.vision.vgg.prepare(
                 pokemon_image, size=(224, 224))
         else:
-            sys.exit("model must be [None, \"vgg\"]")
-        pokemon_type = type_data.iloc[number - 1, _start_index:].astype(label_type)
+            sys.exit("model　argument must be [None, \"vgg\"]")
+        pokemon_type = type_data.iloc[number -
+                                      1, :].astype(label_type)
         pokemon_type = np.asarray(pokemon_type, dtype=label_type)
         pokemon_data = (pokemon_image, pokemon_type)
         return pokemon_data
@@ -109,52 +114,35 @@ def load_dataset(image_types=["original"], model=None, label_type="float", image
         type_data = type_data.iloc[:, start_index:]
     else:
         type_data = ground_data
+    print("type_data shape:", ground_data.shape)
     train_data = []
     test_data = []
-    for image_type in image_types:
-        print("start loading {} image ...".format(image_type))
-        for i in range(1, 722):
-            if model is "vgg":
-                image_file_path = "./pokemon_img/daisukiclub/{}/{}.png".format(
-                    image_type, str(i))
+
+    print("start loading image ...")
+    not_use_images = ["1", "2", "daisuki_org", "yakkun_org"]
+    for i in tqdm(range(1, POKEMON_NUMBER)):
+        path = "./pokemon_img/{}/".format(str(i))
+        image_file_paths = glob.glob(path + "*.png")
+        for image_file_path in image_file_paths:
+            flag_not_use = False
+            for not_use_image in not_use_images:
+                not_use_image = not_use_image + ".png"
+                if not_use_image in image_file_path:
+                    flag_not_use = True
+            if flag_not_use:
+                continue
             else:
-                image_file_path = "./pokemon_img/daisuki_resize/{}/{}.png".format(
-                    image_type, str(i))
-            pokemon_data = make_one_data(number=i,
-                                         load_path=image_file_path,
-                                         type_data=type_data,
-                                         label_type=label_type,
-                                         _start_index=start_index,
-                                         model=model,
-                                         image_size=image_size,
-                                         )
-            train_data.append(pokemon_data)
-            image_file_path = "./pokemon_img/yakkun/{}/{}.png".format(
-                image_type, str(i))
-            pokemon_data = make_one_data(number=i,
-                                         load_path=image_file_path,
-                                         type_data=type_data,
-                                         label_type=label_type,
-                                         _start_index=start_index,
-                                         model=model,
-                                         image_size=image_size)
-            train_data.append(pokemon_data)
-        for i in range(722, 803):
-            if model is "vgg":
-                image_file_path = "./pokemon_img/daisukiclub/{}/{}.png".format(
-                    image_type, str(i))
-            else:
-                image_file_path = "./pokemon_img/daisuki_resize/{}/{}.png".format(
-                    image_type, str(i))
-            pokemon_data = make_one_data(number=i,
-                                         load_path=image_file_path,
-                                         type_data=type_data,
-                                         label_type=label_type,
-                                         _start_index=start_index,
-                                         model=model,
-                                         image_size=image_size)
-            test_data.append(pokemon_data)
-        print("finish loading {} image".format(image_type))
+                pokemon_data = make_one_data(number=i,
+                                             load_path=image_file_path,
+                                             type_data=type_data,
+                                             label_type=label_type,
+                                             model=model,
+                                             image_size=image_size,
+                                             )
+                if i < 722:
+                    train_data.append(pokemon_data)
+                else:
+                    test_data.append(pokemon_data)
     print("finish loading data")
     return train_data, test_data
 
